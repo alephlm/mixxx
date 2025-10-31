@@ -1579,6 +1579,7 @@ add_library(
   src/util/imagefiledata.cpp
   src/util/imageutils.cpp
   src/util/indexrange.cpp
+  src/util/ledserial.cpp
   src/util/logger.cpp
   src/util/logging.cpp
   src/util/mac.cpp
@@ -2260,7 +2261,7 @@ endif()
 
 # The mixxx executable
 if(QT6)
-  find_package(Qt6 COMPONENTS Core) # For Qt Core cmake functions
+  find_package(Qt6 COMPONENTS Core SerialPort REQUIRED) # For Qt Core cmake functions
   # This is the first package form the environment, if this fails give hints how to install the environment
   if(NOT Qt6_FOUND)
     fatal_error_missing_env()
@@ -2281,7 +2282,7 @@ endif()
 
 set_target_properties(mixxx-lib PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY}")
 target_link_libraries(mixxx PRIVATE mixxx-lib mixxx-gitinfostore)
-
+target_link_libraries(mixxx-lib PRIVATE Qt6::SerialPort)
 #
 # Installation and Packaging
 #

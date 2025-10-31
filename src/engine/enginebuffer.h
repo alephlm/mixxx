@@ -317,6 +317,9 @@ class EngineBuffer : public EngineObject {
             const std::size_t bufferSize,
             mixxx::audio::SampleRate sampleRate);
 
+    // float calculateRMS(const CSAMPLE* buffer, std::size_t frames,
+    // mixxx::audio::ChannelCount channels);
+
     // Holds the name of the control group
     const QString m_group;
     int m_channelIndex;

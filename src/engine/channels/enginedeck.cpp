@@ -12,6 +12,7 @@
 #include "moc_enginedeck.cpp"
 #include "track/track.h"
 #include "util/assert.h"
+#include "util/ledserial.h"
 #include "util/sample.h"
 
 EngineDeck::EngineDeck(
@@ -278,6 +279,26 @@ void EngineDeck::postProcessLocalBpm() {
 }
 
 void EngineDeck::postProcess(const std::size_t bufferSize) {
+    EngineChannel::postProcess(bufferSize);
+
+    float rmsL = m_vuMeter.getRmsLeft();
+    float rmsR = m_vuMeter.getRmsRight();
+
+    // Clamp + scale for LED brightness 0–255
+    uint8_t ledL = static_cast<uint8_t>(qBound(0.0f, rmsL * 255.0f, 255.0f));
+    uint8_t ledR = static_cast<uint8_t>(qBound(0.0f, rmsR * 255.0f, 255.0f));
+
+    uint8_t deckId = 0;
+    QString group = getGroup();
+    if (group.contains("Channel1"))
+        deckId = 1;
+    else if (group.contains("Channel2"))
+        deckId = 2;
+
+    // Send both channels separately
+    LedSerial::send(deckId, 0 /* left channel */, ledL);
+    LedSerial::send(deckId, 1 /* right channel */, ledR);
+
     m_pBuffer->postProcess(bufferSize);
 }
 

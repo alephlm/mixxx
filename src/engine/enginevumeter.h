@@ -11,10 +11,18 @@ class EngineVuMeter : public EngineObject {
 
     virtual void process(CSAMPLE* pInOut, const std::size_t bufferSize);
 
+    float getRmsLeft() const {
+        return std::abs(m_fRMSvolumeL);
+    }
+
+    float getRmsRight() const {
+        return std::abs(m_fRMSvolumeR);
+    }
+
     void reset();
 
   private:
-    void doSmooth(CSAMPLE &currentVolume, CSAMPLE newVolume);
+    void doSmooth(CSAMPLE& currentVolume, CSAMPLE newVolume);
 
     ControlObject m_vuMeter;
     ControlObject m_vuMeterLeft;

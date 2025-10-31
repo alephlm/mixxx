@@ -4,6 +4,7 @@
 #include "control/controlpushbutton.h"
 #include "effects/effectsmanager.h"
 #include "moc_enginechannel.cpp"
+#include "util/ledserial.h"
 
 EngineChannel::EngineChannel(const ChannelHandleAndGroup& handleGroup,
         EngineChannel::ChannelOrientation defaultOrientation,
@@ -19,6 +20,7 @@ EngineChannel::EngineChannel(const ChannelHandleAndGroup& handleGroup,
           m_active(false),
           m_bIsTalkoverChannel(isTalkoverChannel),
           m_channelIndex(-1) {
+    LedSerial::init("/dev/ttyACM0");
     m_pPFL = new ControlPushButton(ConfigKey(getGroup(), "pfl"));
     m_pPFL->setButtonMode(mixxx::control::ButtonMode::Toggle);
     m_pMainMix = new ControlPushButton(ConfigKey(getGroup(), "main_mix"));
