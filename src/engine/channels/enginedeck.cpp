@@ -185,6 +185,37 @@ void EngineDeck::processStem(CSAMPLE* pOut, const std::size_t bufferSize) {
         // gain) gain changes will yield to audio cracks.
         m_stemsGainCache[stemIdx] = stemGain;
 
+        // 🎧 Compute combined L+R RMS
+        double sum = 0.0;
+        for (SINT i = 0; i < numFrames; ++i) {
+            float l = pOut[i * 2];
+            float r = pOut[i * 2 + 1];
+            sum += 0.5 * (l * l + r * r); // average power
+        }
+        float rms = static_cast<float>(sqrt(sum / numFrames));
+
+        // Scale to 0–255
+        uint8_t brightness = static_cast<uint8_t>(qBound(0.0f, rms * 255.0f, 255.0f));
+
+        // 🔢 Determine which deck this is (same logic as in postProcess)
+        uint8_t deckId = 0;
+        QString group = getGroup();
+        if (group.contains("Channel1"))
+            deckId = 1;
+        else if (group.contains("Channel2"))
+            deckId = 2;
+
+        // 🚀 Send over serial
+
+        LedSerial::send(deckId, stemIdx, brightness);
+        // LedSerial::send(deckId, stemIdx, static_cast<uint8_t>(brightness));
+
+        // 🪶 Debug log (appears in Mixxx console)
+        qDebug() << "Deck" << deckId
+                 << "Stem" << stemIdx
+                 << "Brightness:" << brightness
+                 << "RMS:" << rms;
+
         // Put back the stem frames into the steam buffer (LRLR -> LR......LR......)
         SampleUtil::insertStereoToMulti(
                 pIn,
@@ -280,24 +311,6 @@ void EngineDeck::postProcessLocalBpm() {
 
 void EngineDeck::postProcess(const std::size_t bufferSize) {
     EngineChannel::postProcess(bufferSize);
-
-    float rmsL = m_vuMeter.getRmsLeft();
-    float rmsR = m_vuMeter.getRmsRight();
-
-    // Clamp + scale for LED brightness 0–255
-    uint8_t ledL = static_cast<uint8_t>(qBound(0.0f, rmsL * 255.0f, 255.0f));
-    uint8_t ledR = static_cast<uint8_t>(qBound(0.0f, rmsR * 255.0f, 255.0f));
-
-    uint8_t deckId = 0;
-    QString group = getGroup();
-    if (group.contains("Channel1"))
-        deckId = 1;
-    else if (group.contains("Channel2"))
-        deckId = 2;
-
-    // Send both channels separately
-    LedSerial::send(deckId, 0 /* left channel */, ledL);
-    LedSerial::send(deckId, 1 /* right channel */, ledR);
 
     m_pBuffer->postProcess(bufferSize);
 }
