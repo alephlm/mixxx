@@ -194,8 +194,11 @@ void EngineDeck::processStem(CSAMPLE* pOut, const std::size_t bufferSize) {
         }
         float rms = static_cast<float>(sqrt(sum / numFrames));
 
+        // Apply gamma-style expansion BEFORE quantizing
+        float boosted = pow(rms, 0.5f); // √rms → boosts low values greatly
+
         // Scale to 0–255
-        uint8_t brightness = static_cast<uint8_t>(qBound(0.0f, rms * 255.0f, 255.0f));
+        uint8_t brightness = qBound(0, int(boosted * 255.0f), 255);
 
         // 🔢 Determine which deck this is (same logic as in postProcess)
         uint8_t deckId = 0;
@@ -205,10 +208,11 @@ void EngineDeck::processStem(CSAMPLE* pOut, const std::size_t bufferSize) {
         else if (group.contains("Channel2"))
             deckId = 2;
 
-        // 🚀 Send over serial
-
-        LedSerial::send(deckId, stemIdx, brightness);
-        // LedSerial::send(deckId, stemIdx, static_cast<uint8_t>(brightness));
+        // Only send serial signal if the deck is playing (speed != 0)
+        const bool isPlaying = (m_pBuffer && m_pBuffer->getSpeed() != 0.0);
+        if (isPlaying) {
+            LedSerial::send(deckId, stemIdx, brightness);
+        }
 
         // 🪶 Debug log (appears in Mixxx console)
         qDebug() << "Deck" << deckId
