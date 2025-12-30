@@ -6,18 +6,18 @@
 
 static QSerialPort serial;
 
-void LedSerial::init(const QString& portName) {
+void LedSerial::init(const QString& serialIdPath) {
     if (serial.isOpen())
         return;
 
-    serial.setPortName(portName);
+    serial.setPortName(serialIdPath);
     serial.setBaudRate(QSerialPort::Baud115200);
 
-    if (!serial.open(QIODevice::WriteOnly)) {
-        qWarning() << "((((((((((((((((((((((Failed to open serial port"
-                   << portName << ":" << serial.errorString();
+    if (!serial.open(QIODevice::ReadWrite)) {
+        qWarning() << "Failed to open serial port"
+                   << serialIdPath << ":" << serial.errorString();
     } else {
-        qInfo() << "))))))))))))))))))))))))))))))))))Serial port opened:" << portName;
+        qInfo() << "Serial port opened:" << serialIdPath;
     }
 }
 

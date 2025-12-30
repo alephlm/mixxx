@@ -208,17 +208,7 @@ void EngineDeck::processStem(CSAMPLE* pOut, const std::size_t bufferSize) {
         else if (group.contains("Channel2"))
             deckId = 2;
 
-        // Only send serial signal if the deck is playing (speed != 0)
-        const bool isPlaying = (m_pBuffer && m_pBuffer->getSpeed() != 0.0);
-        if (isPlaying) {
-            LedSerial::send(deckId, stemIdx, brightness);
-        }
-
-        // 🪶 Debug log (appears in Mixxx console)
-        qDebug() << "Deck" << deckId
-                 << "Stem" << stemIdx
-                 << "Brightness:" << brightness
-                 << "RMS:" << rms;
+        LedSerial::send(deckId, stemIdx, brightness);
 
         // Put back the stem frames into the steam buffer (LRLR -> LR......LR......)
         SampleUtil::insertStereoToMulti(
