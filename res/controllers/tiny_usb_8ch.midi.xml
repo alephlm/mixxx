@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixxxMIDIPreset mixxxVersion="2.3" schemaVersion="1">
+    <info>
+        <name>Tiny USB 8ch Test</name>
+        <author>Test</author>
+        <description>Test controller for Lua integration</description>
+    </info>
+    <controller id="Tiny USB 8ch">
+        <controls>
+            <!-- Test slider 1 -->
+            <control>
+                <group>[Master]</group>
+                <key>crossfader</key>
+                <description>Crossfader</description>
+                <status>0xB1</status>
+                <midino>0x46</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <!-- Test script binding -->
+            <control>
+                <group>[Master]</group>
+                <key>testMidiFunction</key>
+                <description>Test Lua script binding</description>
+                <status>0xB1</status>
+                <midino>0x47</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+        </controls>
+    </controller>
+</MixxxMIDIPreset>

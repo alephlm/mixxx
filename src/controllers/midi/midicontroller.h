@@ -2,6 +2,13 @@
 
 #include <QJSValue>
 
+#ifdef MIXXX_LUA_ENABLED
+extern "C" {
+#include <lua.h>
+}
+#include "util/luaengine.h"
+#endif
+
 #include "controllers/controller.h"
 #include "controllers/midi/legacymidicontrollermapping.h"
 #include "controllers/midi/midimessage.h"
@@ -101,6 +108,15 @@ class MidiController : public Controller {
     void commitTemporaryInputMappings();
 
   private:
+#ifdef MIXXX_LUA_ENABLED
+    std::shared_ptr<LuaEngine> m_pLuaEngine;
+    bool processInputMappingLua(
+            const MidiInputMapping& mapping,
+            unsigned char status,
+            unsigned char control,
+            unsigned char value,
+            mixxx::Duration timestamp);
+#endif
     void processInputMapping(
             const MidiInputMapping& mapping,
             unsigned char status,

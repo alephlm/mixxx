@@ -3,6 +3,10 @@
 #include <QJSValue>
 #include <algorithm>
 
+#ifdef MIXXX_LUA_ENABLED
+#include "util/luaengine.h"
+#endif
+
 #include "control/controlobject.h"
 #include "control/controlpotmeter.h"
 #include "controllers/defs_controllers.h"
@@ -34,6 +38,13 @@ bool MidiInputHandleJSProxy::disconnect() {
 
 MidiController::MidiController(const QString& deviceName)
         : Controller(deviceName) {
+#ifdef MIXXX_LUA_ENABLED
+    m_pLuaEngine = std::make_shared<LuaEngine>();
+    // Load test script
+    if (!m_pLuaEngine->executeFile("../res/controllers/test.lua")) {
+        // Error already logged by executeFile
+    }
+#endif
 }
 
 void MidiController::slotBeforeEngineShutdown() {
@@ -315,8 +326,58 @@ void MidiController::receivedShortMessage(unsigned char status,
                     m_pMapping->getInputMappings().equal_range(mappingKey.key);
             it != end;
             ++it) {
+#ifdef MIXXX_LUA_ENABLED
+        if (processInputMappingLua(it.value(), status, control, value, timestamp)) {
+            continue;
+        }
+#endif
         processInputMapping(it.value(), status, control, value, timestamp);
     }
+}
+
+bool MidiController::processInputMappingLua(
+        const MidiInputMapping& mapping,
+        unsigned char status,
+        unsigned char control,
+        unsigned char value,
+        mixxx::Duration timestamp) {
+    Q_UNUSED(timestamp);
+
+    if (!m_pLuaEngine) {
+        return false;
+    }
+
+    if (!mapping.options.testFlag(MidiOption::Script)) {
+        return false;
+    }
+
+    if (!std::holds_alternative<ConfigKey>(mapping.control)) {
+        return false;
+    }
+
+    const auto& configKey = std::get<ConfigKey>(mapping.control);
+    const QString& luaFunctionName = configKey.item;
+    const QString group = configKey.group;
+
+    if (luaFunctionName.isEmpty()) {
+        return false;
+    }
+
+    const unsigned char channel = MidiUtils::channelFromStatus(status);
+
+    if (!m_pLuaEngine->callFunction(
+                luaFunctionName.toUtf8().constData(),
+                static_cast<int>(channel),
+                static_cast<int>(control),
+                static_cast<int>(value),
+                static_cast<int>(status),
+                group.toUtf8().constData())) {
+        qCWarning(m_logBase) << "Lua call failed for" << luaFunctionName;
+        return false;
+    }
+
+    qCDebug(m_logBase) << "Lua function executed:" << luaFunctionName;
+    return true;
 }
 
 void MidiController::processInputMapping(const MidiInputMapping& mapping,

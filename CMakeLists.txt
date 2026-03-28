@@ -329,6 +329,8 @@ option(QML "Build with QML" OFF)
 
 option(QOPENGL "Use QOpenGLWindow based widget instead of QGLWidget" ON)
 
+option(LUA "Lua scripting support" ON)
+
 if(QOPENGL)
   add_compile_definitions(MIXXX_USE_QOPENGL)
 endif()
@@ -1581,6 +1583,7 @@ add_library(
   src/util/indexrange.cpp
   src/util/logger.cpp
   src/util/logging.cpp
+  src/util/luaengine.cpp
   src/util/mac.cpp
   src/util/moc_included_test.cpp
   src/util/movinginterquartilemean.cpp
@@ -2992,6 +2995,28 @@ if(NOT Chromaprint_FOUND)
   fatal_error_missing_env()
 endif()
 target_link_libraries(mixxx-lib PRIVATE Chromaprint::Chromaprint)
+
+# Lua
+if(LUA)
+  find_package(Lua 5.4)
+
+  message(STATUS "Lua found: ${Lua_FOUND}")
+  message(STATUS "LUA_LIBRARIES: ${LUA_LIBRARIES}")
+  message(STATUS "LUA_INCLUDE_DIRS: ${LUA_INCLUDE_DIRS}")
+
+  if(NOT LUA_INCLUDE_DIRS)
+    set(LUA_INCLUDE_DIRS /usr/include/lua5.4)
+  endif()
+
+  if(Lua_FOUND)
+    target_link_libraries(mixxx-lib PRIVATE ${LUA_LIBRARIES})
+    target_include_directories(mixxx-lib PRIVATE ${LUA_INCLUDE_DIRS})
+    target_compile_definitions(mixxx-lib PRIVATE MIXXX_LUA_ENABLED)
+
+    # 🔥 ADD THIS:
+    target_include_directories(mixxx PRIVATE ${LUA_INCLUDE_DIRS})
+  endif()
+endif()
 
 # Locale Aware Compare for SQLite
 find_package(SQLite3)
