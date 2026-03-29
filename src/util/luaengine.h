@@ -1,11 +1,16 @@
 #pragma once
 #include <lua.h>
 
+#include <functional>
+
 class LuaEngine {
   public:
     LuaEngine();
     ~LuaEngine();
 
+    using SendMidiFn = std::function<void(int, int, int)>;
+    void setSendMidiCallback(SendMidiFn fn);
+    void sendMidi(int status, int control, int value);
     bool executeString(const char* code);
     bool executeFile(const char* filename);
     int callFunction(const char* name, int a, int b);
@@ -25,4 +30,5 @@ class LuaEngine {
 
   private:
     lua_State* m_L;
+    SendMidiFn m_sendMidi;
 };

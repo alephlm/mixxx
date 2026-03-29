@@ -40,8 +40,15 @@ MidiController::MidiController(const QString& deviceName)
         : Controller(deviceName) {
 #ifdef MIXXX_LUA_ENABLED
     m_pLuaEngine = std::make_shared<LuaEngine>();
+    m_pLuaEngine->setSendMidiCallback(
+            [this](int status, int control, int value) {
+                this->sendShortMsg(
+                        static_cast<unsigned char>(status),
+                        static_cast<unsigned char>(control),
+                        static_cast<unsigned char>(value));
+            });
     // Load test script
-    if (!m_pLuaEngine->executeFile("../res/controllers/test.lua")) {
+    if (!m_pLuaEngine->executeFile("../res/lua/test.lua")) {
         // Error already logged by executeFile
     }
 #endif
@@ -331,7 +338,7 @@ void MidiController::receivedShortMessage(unsigned char status,
             continue;
         }
 #endif
-        processInputMapping(it.value(), status, control, value, timestamp);
+        // processInputMapping(it.value(), status, control, value, timestamp);
     }
 }
 
