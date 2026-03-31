@@ -8,6 +8,7 @@
 #include "engine/effects/engineeffectsmanager.h"
 #include "engine/effects/groupfeaturestate.h"
 #include "engine/enginebuffer.h"
+#include "engine/enginemixer.h"
 #include "engine/enginepregain.h"
 #include "moc_enginedeck.cpp"
 #include "track/track.h"
@@ -26,6 +27,10 @@ EngineDeck::EngineDeck(
                   /*isTalkoverChannel*/ false,
                   primaryDeck),
           m_pConfig(pConfig),
+          m_pEngineMixer(pMixingEngine),
+          m_volumeProxy(ConfigKey(getGroup(), QStringLiteral("volume"))),
+          m_xfaderPositionProxy(QStringLiteral("[Master]"), QStringLiteral("crossfader")),
+          m_xfaderOrientationProxy(ConfigKey(getGroup(), QStringLiteral("orientation"))),
 #ifdef __STEM__
           m_stemClonedState(false),
 #endif
@@ -208,7 +213,30 @@ void EngineDeck::processStem(CSAMPLE* pOut, const std::size_t bufferSize) {
         else if (group.contains("Channel2"))
             deckId = 2;
 
-        LedSerial::send(deckId, stemIdx, brightness);
+        // Only send LED updates if the deck's volume fader is above zero.
+        // In the future we can refine this by computing the deck's actual
+        // contribution to the main mix using the xfader position and
+        // orientation (`m_xfaderPositionProxy`, `m_xfaderOrientationProxy`).
+
+        // Prefer querying the mixer for the cached main gain for this
+        // channel, which reflects the channel's overall contribution to
+        // the main mix (includes fader, mute, and crossfader routing).
+        bool shouldSend = false;
+        if (m_pEngineMixer) {
+            EngineChannel* pChannel = m_pEngineMixer->getChannel(getGroup());
+            if (pChannel) {
+                int channelIndex = pChannel->getChannelIndex();
+                CSAMPLE_GAIN mainGain = m_pEngineMixer->getMainGain(channelIndex);
+                shouldSend = mainGain > 0.0f;
+            }
+        } else {
+            // Fallback to volume proxy if mixer not available
+            shouldSend = m_volumeProxy.get() > 0.0;
+        }
+
+        if (shouldSend) {
+            LedSerial::send(deckId, stemIdx, brightness);
+        }
 
         // Put back the stem frames into the steam buffer (LRLR -> LR......LR......)
         SampleUtil::insertStereoToMulti(
@@ -244,6 +272,16 @@ void EngineDeck::cloneStemState(const EngineDeck* deckToClone) {
     m_stemClonedState = true;
 }
 #endif
+
+void EngineDeck::initPollingProxies() {
+    // Reinitialize proxies now that EngineMixer has created the persistent
+    // channel controls (volume, orientation) and the master crossfader.
+    m_volumeProxy = PollingControlProxy(ConfigKey(getGroup(), QStringLiteral("volume")));
+    m_xfaderPositionProxy = PollingControlProxy(
+            QStringLiteral("[Master]"), QStringLiteral("crossfader"));
+    m_xfaderOrientationProxy = PollingControlProxy(
+            ConfigKey(getGroup(), QStringLiteral("orientation")));
+}
 
 void EngineDeck::process(CSAMPLE* pOut, const std::size_t bufferSize) {
     // Feed the incoming audio through if passthrough is active

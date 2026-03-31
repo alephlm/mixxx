@@ -866,6 +866,12 @@ void EngineMixer::addChannel(std::unique_ptr<EngineChannel> pChannel) {
     pChannelInfo->m_pBuffer = mixxx::SampleBuffer(kMaxEngineSamples);
     pChannelInfo->m_pBuffer.clear();
     EngineBuffer* pBuffer = pChannelInfo->m_pChannel->getEngineBuffer();
+
+    // Allow the channel to initialize any polling proxies now that the
+    // persistent controls (volume, mute, orientation, master crossfader)
+    // have been created for this group.
+    pChannelInfo->m_pChannel->initPollingProxies();
+
     m_channels.append(std::move(pChannelInfo));
     constexpr GainCache gainCacheDefault = {0, false};
     m_channelHeadphoneGainCache.append(gainCacheDefault);

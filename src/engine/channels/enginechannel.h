@@ -70,6 +70,12 @@ class EngineChannel : public EngineObject {
         Q_UNUSED(bufferSize)
     }
 
+    // Initialize any polling proxies that need to be created after the
+    // engine mixer has created persistent controls for this channel.
+    // Default implementation does nothing.
+    virtual void initPollingProxies() {
+    }
+
     // TODO(XXX) This hack needs to be removed.
     virtual EngineBuffer* getEngineBuffer() {
         return nullptr;

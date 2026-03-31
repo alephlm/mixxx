@@ -2,6 +2,7 @@
 
 #include <QScopedPointer>
 
+#include "control/pollingcontrolproxy.h"
 #include "engine/channels/enginechannel.h"
 #include "preferences/usersettings.h"
 #include "soundio/soundmanagerutil.h"
@@ -39,6 +40,9 @@ class EngineDeck : public EngineChannel, public AudioDestination {
     // Update beat distances, sync modes, and other values that are only known
     // after all other processing is done.
     void postProcess(const std::size_t bufferSize) override;
+
+    // Initialize polling proxies (override of EngineChannel)
+    void initPollingProxies() override;
 
     // TODO(XXX) This hack needs to be removed.
     EngineBuffer* getEngineBuffer() override;
@@ -94,6 +98,14 @@ class EngineDeck : public EngineChannel, public AudioDestination {
     std::vector<CSAMPLE_GAIN> m_stemsGainCache;
 
     UserSettingsPointer m_pConfig;
+    // Proxies for controls needed to determine whether this deck contributes
+    // to the main mix. Thread-safe, non-blocking access from the audio thread.
+    PollingControlProxy m_volumeProxy;
+    PollingControlProxy m_xfaderPositionProxy;
+    PollingControlProxy m_xfaderOrientationProxy;
+    // Pointer to the engine mixer so we can query the channel's main gain
+    // (thread-safe read via EngineMixer::getMainGain).
+    EngineMixer* m_pEngineMixer;
     EngineBuffer* m_pBuffer;
     EnginePregain* m_pPregain;
 
