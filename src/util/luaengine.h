@@ -2,6 +2,10 @@
 #include <lua.h>
 
 #include <functional>
+#include <memory>
+#include <vector>
+
+class ControlProxy;
 
 class LuaEngine {
   public:
@@ -14,6 +18,8 @@ class LuaEngine {
     bool executeString(const char* code);
     bool executeFile(const char* filename);
     int callFunction(const char* name, int a, int b);
+    bool callFunction(const char* name);
+    bool makeConnection(const char* group, const char* name, int luaCallbackRef);
 
     // High-level helper for midi callback functions:
     // function callback(channel, control, value, status, group)
@@ -29,6 +35,11 @@ class LuaEngine {
     }
 
   private:
+    struct LuaScriptHandle {
+        std::unique_ptr<ControlProxy> controlProxy;
+    };
+
     lua_State* m_L;
     SendMidiFn m_sendMidi;
+    std::vector<LuaScriptHandle> m_luaConnections;
 };

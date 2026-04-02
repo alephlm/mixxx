@@ -48,9 +48,7 @@ MidiController::MidiController(const QString& deviceName)
                         static_cast<unsigned char>(value));
             });
     // Load test script
-    if (!m_pLuaEngine->executeFile("../res/lua/test.lua")) {
-        // Error already logged by executeFile
-    }
+    m_pLuaEngine->executeFile("../res/lua/test.lua");
 #endif
 }
 
@@ -76,6 +74,12 @@ QString MidiController::mappingExtension() {
 void MidiController::setMapping(std::shared_ptr<LegacyControllerMapping> pMapping) {
     m_pMutableMapping = pMapping;
     m_pMapping = downcastAndClone<LegacyMidiControllerMapping>(pMapping.get());
+
+#ifdef MIXXX_LUA_ENABLED
+    if (m_pLuaEngine) {
+        m_pLuaEngine->callFunction("init");
+    }
+#endif
 }
 
 QList<LegacyControllerMapping::ScriptFileInfo> MidiController::getMappingScriptFiles() {

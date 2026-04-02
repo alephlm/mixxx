@@ -3,13 +3,52 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
+#include <QString>
 #include <iostream>
 
 #include "control/controlproxy.h"
 
+class LuaValueChangedCallback : public QObject {
+  public:
+    LuaValueChangedCallback(lua_State* L, int ref, const char* group, const char* name)
+            : m_L(L),
+              m_ref(ref),
+              m_group(group),
+              m_name(name) {
+    }
+
+    ~LuaValueChangedCallback() {
+        if (m_ref != LUA_REFNIL) {
+            luaL_unref(m_L, LUA_REGISTRYINDEX, m_ref);
+        }
+    }
+
+    void onValueChanged(double value) {
+        lua_rawgeti(m_L, LUA_REGISTRYINDEX, m_ref);
+        if (!lua_isfunction(m_L, -1)) {
+            lua_pop(m_L, 1);
+            return;
+        }
+        lua_pushnumber(m_L, value);
+        lua_pushstring(m_L, m_group.c_str());
+        lua_pushstring(m_L, m_name.c_str());
+        if (lua_pcall(m_L, 3, 0, 0) != LUA_OK) {
+            std::cerr << "[Lua error] " << lua_tostring(m_L, -1) << std::endl;
+            lua_pop(m_L, 1);
+        }
+    }
+
+  private:
+    lua_State* m_L;
+    int m_ref;
+    std::string m_group;
+    std::string m_name;
+};
+
 static int l_setValue(lua_State* L);
 static int l_getValue(lua_State* L);
 static int l_sendShortMsg(lua_State* L);
+static int l_makeConnection(lua_State* L);
 
 LuaEngine::LuaEngine() {
     m_L = luaL_newstate();
@@ -21,6 +60,8 @@ LuaEngine::LuaEngine() {
     lua_register(m_L, "setValue", l_setValue);
     lua_register(m_L, "getValue", l_getValue);
     lua_register(m_L, "sendShortMsg", l_sendShortMsg);
+    lua_register(m_L, "makeConnection", l_makeConnection);
+
     std::cout << "[LuaEngine] Initialized" << std::endl;
 }
 
@@ -72,6 +113,22 @@ int LuaEngine::callFunction(const char* name, int a, int b) {
     lua_pop(m_L, 1);
 
     return result;
+}
+
+bool LuaEngine::callFunction(const char* name) {
+    lua_getglobal(m_L, name);
+
+    if (!lua_isfunction(m_L, -1)) {
+        lua_pop(m_L, 1);
+        return false;
+    }
+
+    if (lua_pcall(m_L, 0, 0, 0) != LUA_OK) {
+        std::cerr << "[Lua error] " << lua_tostring(m_L, -1) << std::endl;
+        lua_pop(m_L, 1);
+        return false;
+    }
+    return true;
 }
 
 bool LuaEngine::callFunction(const char* name,
@@ -128,7 +185,7 @@ static int l_getValue(lua_State* L) {
 static int l_sendShortMsg(lua_State* L) {
     int status = luaL_checkinteger(L, 1);
     int control = luaL_checkinteger(L, 2);
-    int value = luaL_checkinteger(L, 3);
+    int value = luaL_checknumber(L, 3); // Accept number and convert to int
 
     // get LuaEngine instance
     lua_getglobal(L, "__engine");
@@ -155,4 +212,58 @@ void LuaEngine::sendMidi(int status, int control, int value) {
     if (m_sendMidi) {
         m_sendMidi(status, control, value);
     }
+}
+
+bool LuaEngine::makeConnection(const char* group, const char* name, int luaCallbackRef) {
+    if (group == nullptr || name == nullptr) {
+        return false;
+    }
+
+    auto proxy = std::make_unique<ControlProxy>(QString::fromUtf8(group),
+            QString::fromUtf8(name),
+            nullptr,
+            ControlFlag::AllowMissingOrInvalid);
+
+    if (!proxy->valid()) {
+        return false;
+    }
+
+    LuaValueChangedCallback* callbackHolder =
+            new LuaValueChangedCallback(m_L, luaCallbackRef, group, name);
+    callbackHolder->setParent(proxy.get());
+
+    if (!proxy->connectValueChanged(callbackHolder, &LuaValueChangedCallback::onValueChanged)) {
+        delete callbackHolder;
+        return false;
+    }
+
+    LuaScriptHandle handle;
+    handle.controlProxy = std::move(proxy);
+
+    m_luaConnections.push_back(std::move(handle));
+
+    return true;
+}
+
+static int l_makeConnection(lua_State* L) {
+    const char* group = luaL_checkstring(L, 1);
+    const char* name = luaL_checkstring(L, 2);
+    luaL_checktype(L, 3, LUA_TFUNCTION);
+
+    // Create a stable reference to function.
+    lua_pushvalue(L, 3);
+    int callbackRef = luaL_ref(L, LUA_REGISTRYINDEX);
+
+    LuaEngine* engine = static_cast<LuaEngine*>(lua_touserdata(L, lua_upvalueindex(1)));
+    // We cannot get this from upvalue; instead user object is stored on __engine global.
+    lua_getglobal(L, "__engine");
+    engine = static_cast<LuaEngine*>(lua_touserdata(L, -1));
+    lua_pop(L, 1);
+
+    bool success = false;
+    if (engine) {
+        success = engine->makeConnection(group, name, callbackRef);
+    }
+    lua_pushboolean(L, success);
+    return 1;
 }
