@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "control/controlproxy.h"
+#include "controllers/scripting/colormapper.h"
 
 class LuaValueChangedCallback : public QObject {
   public:
@@ -49,6 +50,10 @@ static int l_setValue(lua_State* L);
 static int l_getValue(lua_State* L);
 static int l_sendShortMsg(lua_State* L);
 static int l_makeConnection(lua_State* L);
+static int l_ColorMapperNew(lua_State* L);
+static int l_ColorMapperGetNearestColor(lua_State* L);
+static int l_ColorMapperGetValueForNearestColor(lua_State* L);
+static int l_ColorMapperGC(lua_State* L);
 
 LuaEngine::LuaEngine() {
     m_L = luaL_newstate();
@@ -61,6 +66,20 @@ LuaEngine::LuaEngine() {
     lua_register(m_L, "getValue", l_getValue);
     lua_register(m_L, "sendShortMsg", l_sendShortMsg);
     lua_register(m_L, "makeConnection", l_makeConnection);
+
+    // Register ColorMapper class
+    luaL_newmetatable(m_L, "ColorMapper");
+    lua_pushvalue(m_L, -1);
+    lua_setfield(m_L, -2, "__index");
+    lua_pushcfunction(m_L, l_ColorMapperGetNearestColor);
+    lua_setfield(m_L, -2, "getNearestColor");
+    lua_pushcfunction(m_L, l_ColorMapperGetValueForNearestColor);
+    lua_setfield(m_L, -2, "getValueForNearestColor");
+    lua_pushcfunction(m_L, l_ColorMapperGC);
+    lua_setfield(m_L, -2, "__gc");
+    lua_pop(m_L, 1);
+
+    lua_register(m_L, "ColorMapper", l_ColorMapperNew);
 
     std::cout << "[LuaEngine] Initialized" << std::endl;
 }
@@ -266,4 +285,92 @@ static int l_makeConnection(lua_State* L) {
     }
     lua_pushboolean(L, success);
     return 1;
+}
+
+// ColorMapper Lua bindings
+static int l_ColorMapperNew(lua_State* L) {
+    // Parameter: table of color -> value pairs
+    luaL_checktype(L, 1, LUA_TTABLE);
+
+    QMap<QRgb, QVariant> colorMap;
+    lua_pushnil(L);
+    while (lua_next(L, 1) != 0) {
+        // key is at -2, value is at -1
+        QRgb color = static_cast<QRgb>(luaL_checkinteger(L, -2));
+        QVariant value;
+
+        if (lua_isnumber(L, -1)) {
+            value = QVariant(lua_tointeger(L, -1));
+        } else if (lua_isstring(L, -1)) {
+            value = QVariant(QString::fromUtf8(lua_tostring(L, -1)));
+        } else {
+            value = QVariant();
+        }
+
+        colorMap.insert(color, value);
+        lua_pop(L, 1);
+    }
+
+    if (colorMap.isEmpty()) {
+        luaL_error(L, "ColorMapper requires at least one color mapping");
+        return 0;
+    }
+
+    // Create ColorMapper and store as light userdata
+    ColorMapper** pMapper = static_cast<ColorMapper**>(
+            lua_newuserdata(L, sizeof(ColorMapper*)));
+    *pMapper = new ColorMapper(colorMap);
+
+    luaL_setmetatable(L, "ColorMapper");
+    return 1;
+}
+
+static int l_ColorMapperGetNearestColor(lua_State* L) {
+    ColorMapper** pMapper = static_cast<ColorMapper**>(
+            luaL_checkudata(L, 1, "ColorMapper"));
+
+    if (!pMapper || !*pMapper) {
+        luaL_error(L, "Invalid ColorMapper object");
+        return 0;
+    }
+
+    QRgb colorCode = static_cast<QRgb>(luaL_checkinteger(L, 2));
+    QRgb nearestColor = (*pMapper)->getNearestColor(colorCode);
+
+    lua_pushinteger(L, static_cast<lua_Integer>(nearestColor));
+    return 1;
+}
+
+static int l_ColorMapperGetValueForNearestColor(lua_State* L) {
+    ColorMapper** pMapper = static_cast<ColorMapper**>(
+            luaL_checkudata(L, 1, "ColorMapper"));
+
+    if (!pMapper || !*pMapper) {
+        luaL_error(L, "Invalid ColorMapper object");
+        return 0;
+    }
+
+    QRgb colorCode = static_cast<QRgb>(luaL_checkinteger(L, 2));
+    QVariant value = (*pMapper)->getValueForNearestColor(colorCode);
+
+    if (value.type() == QVariant::Int) {
+        lua_pushinteger(L, value.toInt());
+    } else if (value.type() == QVariant::String) {
+        lua_pushstring(L, value.toString().toUtf8().constData());
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
+static int l_ColorMapperGC(lua_State* L) {
+    ColorMapper** pMapper = static_cast<ColorMapper**>(
+            luaL_checkudata(L, 1, "ColorMapper"));
+
+    if (pMapper && *pMapper) {
+        delete *pMapper;
+        *pMapper = nullptr;
+    }
+
+    return 0;
 }
