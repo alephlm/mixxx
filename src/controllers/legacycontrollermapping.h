@@ -62,6 +62,7 @@ class LegacyControllerMapping {
     struct ScriptFileInfo {
         enum class Type {
             Javascript,
+            Lua,
 #ifdef MIXXX_USE_QML
             Qml,
 #endif

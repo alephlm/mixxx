@@ -47,8 +47,7 @@ MidiController::MidiController(const QString& deviceName)
                         static_cast<unsigned char>(control),
                         static_cast<unsigned char>(value));
             });
-    // Load test script
-    m_pLuaEngine->executeFile("../res/lua/test.lua");
+    // Script loading moved to setMapping
 #endif
 }
 
@@ -76,6 +75,15 @@ void MidiController::setMapping(std::shared_ptr<LegacyControllerMapping> pMappin
     m_pMapping = downcastAndClone<LegacyMidiControllerMapping>(pMapping.get());
 
 #ifdef MIXXX_LUA_ENABLED
+    // Load Lua scripts from the mapping
+    QList<LegacyControllerMapping::ScriptFileInfo> scriptFiles = getMappingScriptFiles();
+    for (const auto& scriptFile : scriptFiles) {
+        if (scriptFile.type == LegacyControllerMapping::ScriptFileInfo::Type::Lua) {
+            QString fullPath = scriptFile.file.absoluteFilePath();
+            m_pLuaEngine->executeFile(fullPath.toUtf8().constData());
+        }
+    }
+
     if (m_pLuaEngine) {
         m_pLuaEngine->callFunction("init");
     }

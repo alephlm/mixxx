@@ -406,6 +406,13 @@ void LegacyControllerMappingFileHandler::addScriptFilesToMapping(
                     << ". Mixxx isn't built with QML support";
             return;
 #endif
+        } else if (file.suffix() == "lua") {
+            mapping->addScriptFile(LegacyControllerMapping::ScriptFileInfo{
+                    filename,
+                    "",
+                    file,
+                    LegacyControllerMapping::ScriptFileInfo::Type::Lua,
+                    false});
         } else {
             QString functionPrefix = scriptFile.attribute("functionprefix", "");
             mapping->addScriptFile(LegacyControllerMapping::ScriptFileInfo{filename,

@@ -96,7 +96,15 @@ bool Controller::applyMapping(const QString& resourcePath) {
         return true;
     }
 
-    m_pScriptEngineLegacy->setScriptFiles(scriptFiles);
+    // Filter out Lua scripts - they are handled separately by MidiController
+    QList<LegacyControllerMapping::ScriptFileInfo> jsScriptFiles;
+    for (const auto& scriptFile : scriptFiles) {
+        if (scriptFile.type != LegacyControllerMapping::ScriptFileInfo::Type::Lua) {
+            jsScriptFiles.append(scriptFile);
+        }
+    }
+
+    m_pScriptEngineLegacy->setScriptFiles(jsScriptFiles);
 
     m_pScriptEngineLegacy->setSettings(getMappingSettings());
 #ifdef MIXXX_USE_QML

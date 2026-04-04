@@ -355,6 +355,8 @@ static int l_ColorMapperGetValueForNearestColor(lua_State* L) {
 
     if (value.type() == QVariant::Int) {
         lua_pushinteger(L, value.toInt());
+    } else if (value.type() == QVariant::LongLong) {
+        lua_pushinteger(L, value.toLongLong());
     } else if (value.type() == QVariant::String) {
         lua_pushstring(L, value.toString().toUtf8().constData());
     } else {
