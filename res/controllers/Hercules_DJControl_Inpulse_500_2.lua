@@ -1,14 +1,16 @@
--- Test Lua script for Mixxx controller
-local toggle = false;
 local colorMapper = nil;
-PadColorMapper = {}
 
 function init()
-    -- Optional startup initialization. Do not send MIDI unconditionally here
-    toggle = false
     print("------- LUA init() ------");
     makeConnection("[Channel1]", "vu_meter", vuMeterPeakDeck );
     makeConnection("[Channel2]", "vu_meter", vuMeterPeakDeck );
+    for i = 1, 8 do
+        local index = i  -- closure safety
+
+        _G["hotcueButton" .. index] = function(channel, control, value, status, group)
+            hotcueButtonHandler(index, channel, control, value, status, group)
+        end
+    end
     for i = 1, 8 do
         makeConnection("[Channel1]", "hotcue_" .. i .. "_color", setHotCueColor );
         makeConnection("[Channel1]", "hotcue_" .. i .. "_enabled", hotcueClear );
@@ -52,8 +54,9 @@ function init()
 
 end
 
-function testMidiFunction(channel, control, value, status, group)
-    print("Lua script called: channel=" .. channel .. ", control=" .. control .. ", value=" .. value .. ", status=" .. status .. ", group=" .. group)
+function hotcueButtonHandler(index, channel, control, value, status, group)
+    print("👉 Pad " .. index .. " pressed")
+    setValue(group, "hotcue_" .. index .. "_activate", value);
 end
 
 function playButtonHandler(channel, control, value, status, group)
@@ -80,15 +83,6 @@ function playButtonHandler(channel, control, value, status, group)
 end
 
 function vuMeterPeakDeck (value, group, control)
-    print(
-    "VU Meter Peak Deck: " ..
-    tostring(value) ..
-    " Group: " ..
-    tostring(group) ..
-    " Control: " ..
-    tostring(control)
-
-)
     value = absoluteLinInverse(value, 0.0, 1.0, 0, 125);
     if group == "[Channel1]" then
         sendShortMsg(0xB1, 0x40, value);

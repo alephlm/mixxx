@@ -47,7 +47,6 @@ MidiController::MidiController(const QString& deviceName)
                         static_cast<unsigned char>(control),
                         static_cast<unsigned char>(value));
             });
-    // Script loading moved to setMapping
 #endif
 }
 
@@ -350,7 +349,7 @@ void MidiController::receivedShortMessage(unsigned char status,
             continue;
         }
 #endif
-        // processInputMapping(it.value(), status, control, value, timestamp);
+        processInputMapping(it.value(), status, control, value, timestamp);
     }
 }
 

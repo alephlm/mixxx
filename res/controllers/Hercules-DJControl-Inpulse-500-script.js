@@ -102,6 +102,7 @@ DJCi500.PadColorMapper = new ColorMapper({
     0x888888: 0x52,
     0x88FF00: 0x5C,
     0xFF8800: 0x74,
+
 });
 
 // Constants
