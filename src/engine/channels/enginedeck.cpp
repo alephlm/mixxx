@@ -87,6 +87,8 @@ EngineDeck::EngineDeck(
         pMuteButton->setButtonMode(mixxx::control::ButtonMode::PowerWindow);
         m_stemMute.push_back(std::move(pMuteButton));
     }
+    m_lastLedValues.assign(mixxx::kMaxSupportedStems, 0);
+    m_lastLedUpdateTime = mixxx::Duration::fromMillis(0);
 #endif
 }
 
@@ -200,7 +202,7 @@ void EngineDeck::processStem(CSAMPLE* pOut, const std::size_t bufferSize) {
         float rms = static_cast<float>(sqrt(sum / numFrames));
 
         // Apply gamma-style expansion BEFORE quantizing
-        float boosted = pow(rms, 0.5f); // √rms → boosts low values greatly
+        float boosted = sqrtf(rms); // √rms → boosts low values greatly
 
         // Scale to 0–255
         uint8_t brightness = qBound(0, int(boosted * 255.0f), 255);
@@ -213,14 +215,6 @@ void EngineDeck::processStem(CSAMPLE* pOut, const std::size_t bufferSize) {
         else if (group.contains("Channel2"))
             deckId = 2;
 
-        // Only send LED updates if the deck's volume fader is above zero.
-        // In the future we can refine this by computing the deck's actual
-        // contribution to the main mix using the xfader position and
-        // orientation (`m_xfaderPositionProxy`, `m_xfaderOrientationProxy`).
-
-        // Prefer querying the mixer for the cached main gain for this
-        // channel, which reflects the channel's overall contribution to
-        // the main mix (includes fader, mute, and crossfader routing).
         bool shouldSend = false;
         if (m_pEngineMixer) {
             EngineChannel* pChannel = m_pEngineMixer->getChannel(getGroup());
@@ -235,7 +229,23 @@ void EngineDeck::processStem(CSAMPLE* pOut, const std::size_t bufferSize) {
         }
 
         if (shouldSend) {
-            LedSerial::send(deckId, stemIdx, brightness);
+            // Only send if the value has changed significantly (threshold of 2)
+            // AND we haven't sent an update in the last 20ms to avoid saturating
+            // the serial port and audio thread.
+            static const mixxx::Duration kUpdateInterval = mixxx::Duration::fromMillis(20);
+            mixxx::Duration currentTime = mixxx::Duration::fromMillis(
+                    clock() * 1000 / CLOCKS_PER_SEC);
+
+            if (abs(int(brightness) - int(m_lastLedValues[stemIdx])) > 2 &&
+                    (currentTime - m_lastLedUpdateTime) > kUpdateInterval) {
+                LedSerial::send(deckId, stemIdx, brightness);
+                m_lastLedValues[stemIdx] = brightness;
+                m_lastLedUpdateTime = currentTime;
+            }
+        } else if (m_lastLedValues[stemIdx] != 0) {
+            // If it shouldn't send (volume at 0), ensure LEDs are turned off once.
+            LedSerial::send(deckId, stemIdx, 0);
+            m_lastLedValues[stemIdx] = 0;
         }
 
         // Put back the stem frames into the steam buffer (LRLR -> LR......LR......)

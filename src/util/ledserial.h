@@ -1,13 +1,32 @@
 #pragma once
-#include <QMutex>
-#include <QSerialPort>
 
-class LedSerial {
+#include <QMutex>
+#include <QObject>
+#include <QSerialPort>
+#include <QThread>
+
+class LedSerialWorker : public QObject {
+    Q_OBJECT
   public:
-    static void init(const QString& portName);
-    static void send(uint8_t deckId, uint8_t stemId, uint8_t value);
+    LedSerialWorker();
+    ~LedSerialWorker() override;
+
+  public slots:
+    void init(const QString& portName);
+    void send(int deckId, int stemId, int value);
 
   private:
-    static QSerialPort* s_port;
-    static QMutex s_mutex;
+    QSerialPort m_port;
+};
+
+class LedSerial : public QObject {
+    Q_OBJECT
+  public:
+    static void init(const QString& portName);
+    static void send(int deckId, int stemId, int value);
+    static void stop();
+
+  private:
+    static LedSerialWorker* s_pWorker;
+    static QThread* s_pThread;
 };

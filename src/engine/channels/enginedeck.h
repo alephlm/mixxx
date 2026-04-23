@@ -7,6 +7,7 @@
 #include "preferences/usersettings.h"
 #include "soundio/soundmanagerutil.h"
 #include "track/track_decl.h"
+#include "util/duration.h"
 #include "util/samplebuffer.h"
 
 class EnginePregain;
@@ -98,14 +99,14 @@ class EngineDeck : public EngineChannel, public AudioDestination {
     std::vector<CSAMPLE_GAIN> m_stemsGainCache;
 
     UserSettingsPointer m_pConfig;
+    // Pointer to the engine mixer so we can query the channel's main gain
+    // (thread-safe read via EngineMixer::getMainGain).
+    EngineMixer* m_pEngineMixer;
     // Proxies for controls needed to determine whether this deck contributes
     // to the main mix. Thread-safe, non-blocking access from the audio thread.
     PollingControlProxy m_volumeProxy;
     PollingControlProxy m_xfaderPositionProxy;
     PollingControlProxy m_xfaderOrientationProxy;
-    // Pointer to the engine mixer so we can query the channel's main gain
-    // (thread-safe read via EngineMixer::getMainGain).
-    EngineMixer* m_pEngineMixer;
     EngineBuffer* m_pBuffer;
     EnginePregain* m_pPregain;
 
@@ -116,6 +117,8 @@ class EngineDeck : public EngineChannel, public AudioDestination {
     std::vector<std::unique_ptr<ControlPotmeter>> m_stemGain;
     std::vector<std::unique_ptr<ControlPushButton>> m_stemMute;
     bool m_stemClonedState;
+    std::vector<uint8_t> m_lastLedValues;
+    mixxx::Duration m_lastLedUpdateTime;
 #endif
 
     // Begin vinyl passthrough fields
