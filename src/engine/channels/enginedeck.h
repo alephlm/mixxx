@@ -117,8 +117,6 @@ class EngineDeck : public EngineChannel, public AudioDestination {
     std::vector<std::unique_ptr<ControlPotmeter>> m_stemGain;
     std::vector<std::unique_ptr<ControlPushButton>> m_stemMute;
     bool m_stemClonedState;
-    std::vector<uint8_t> m_lastLedValues;
-    mixxx::Duration m_lastLedUpdateTime;
 #endif
 
     // Begin vinyl passthrough fields

@@ -87,8 +87,6 @@ EngineDeck::EngineDeck(
         pMuteButton->setButtonMode(mixxx::control::ButtonMode::PowerWindow);
         m_stemMute.push_back(std::move(pMuteButton));
     }
-    m_lastLedValues.assign(mixxx::kMaxSupportedStems, 0);
-    m_lastLedUpdateTime = mixxx::Duration::fromMillis(0);
 #endif
 }
 
@@ -229,23 +227,7 @@ void EngineDeck::processStem(CSAMPLE* pOut, const std::size_t bufferSize) {
         }
 
         if (shouldSend) {
-            // Only send if the value has changed significantly (threshold of 2)
-            // AND we haven't sent an update in the last 20ms to avoid saturating
-            // the serial port and audio thread.
-            static const mixxx::Duration kUpdateInterval = mixxx::Duration::fromMillis(20);
-            mixxx::Duration currentTime = mixxx::Duration::fromMillis(
-                    clock() * 1000 / CLOCKS_PER_SEC);
-
-            if (abs(int(brightness) - int(m_lastLedValues[stemIdx])) > 2 &&
-                    (currentTime - m_lastLedUpdateTime) > kUpdateInterval) {
-                LedSerial::send(deckId, stemIdx, brightness);
-                m_lastLedValues[stemIdx] = brightness;
-                m_lastLedUpdateTime = currentTime;
-            }
-        } else if (m_lastLedValues[stemIdx] != 0) {
-            // If it shouldn't send (volume at 0), ensure LEDs are turned off once.
-            LedSerial::send(deckId, stemIdx, 0);
-            m_lastLedValues[stemIdx] = 0;
+            LedSerial::send(deckId, stemIdx, brightness);
         }
 
         // Put back the stem frames into the steam buffer (LRLR -> LR......LR......)
