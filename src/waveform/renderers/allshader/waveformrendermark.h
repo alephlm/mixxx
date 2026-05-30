@@ -72,7 +72,13 @@ class allshader::WaveformRenderMark : public ::WaveformRenderMarkBase,
             QPointF p2,
             QPointF p3);
 
-    void updateUntilMark(double playPosition, double markerPosition);
+    int beatsFromPlayheadToMarker(
+            mixxx::BeatsPointer trackBeats,
+            double playPosition,
+            double markPosition) const;
+    void updateUntilMark(double playPosition,
+            double nextMarkPosition,
+            double nextNextMarkPosition);
     void updateDigitsNodeForUntilMark(float x);
     float getMaxHeightForText(float proportion) const;
     void updateRangeNode(rendergraph::GeometryNode* pNode,
@@ -80,9 +86,8 @@ class allshader::WaveformRenderMark : public ::WaveformRenderMarkBase,
             QColor color);
 
     int m_beatsUntilMark;
+    int m_beatsToNextNextMark;
     double m_timeUntilMark;
-    double m_currentBeatPosition;
-    double m_nextBeatPosition;
     std::unique_ptr<ControlProxy> m_pTimeRemainingControl;
 
     bool m_isSlipRenderer;
@@ -95,6 +100,7 @@ class allshader::WaveformRenderMark : public ::WaveformRenderMarkBase,
     float m_playPosDevicePixelRatio;
 
     DigitsRenderNode* m_pDigitsRenderNode{};
+    DigitsRenderNode* m_pSubDigitsRenderNode{};
 
     QColor m_playMarkerForegroundColor;
     QColor m_playMarkerBackgroundColor;
