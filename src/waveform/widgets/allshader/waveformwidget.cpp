@@ -17,6 +17,7 @@
 #include "waveform/renderers/allshader/waveformrendererslipmode.h"
 #include "waveform/renderers/allshader/waveformrendererstem.h"
 #include "waveform/renderers/allshader/waveformrenderertextured.h"
+#include "waveform/renderers/allshader/waveformrenderlyrics.h"
 #include "waveform/renderers/allshader/waveformrendermark.h"
 #include "waveform/renderers/allshader/waveformrendermarkrange.h"
 #include "waveform/waveformwidgetfactory.h"
@@ -61,6 +62,9 @@ WaveformWidget::WaveformWidget(QWidget* parent,
     }
     pOpacityNode->appendChildNode(addRendererNode<WaveformRenderBeat>());
     m_pWaveformRenderMark = pOpacityNode->appendChildNode(addRendererNode<WaveformRenderMark>());
+
+    // Add lyrics renderer as a child of pOpacityNode so it gets rendered on top
+    pOpacityNode->appendChildNode(addRendererNode<WaveformRenderLyrics>());
 
     // if the added signal renderer supports slip, we add it again, now for
     // slip, together with the other slip renderers

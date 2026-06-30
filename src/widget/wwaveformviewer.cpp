@@ -3,8 +3,10 @@
 #include <QDragEnterEvent>
 #include <QEvent>
 
+#include "audio/lrc.h"
 #include "control/controlproxy.h"
 #include "moc_wwaveformviewer.cpp"
+#include "track/track.h"
 #include "util/dnd.h"
 #include "util/math.h"
 #include "waveform/waveformwidgetfactory.h"
@@ -224,6 +226,16 @@ void WWaveformViewer::leaveEvent(QEvent*) {
 void WWaveformViewer::slotTrackLoaded(TrackPointer track) {
     if (m_waveformWidget) {
         m_waveformWidget->setTrack(track);
+    }
+    // Load LRC lyrics file if available
+    if (track) {
+        QString lrcPath = mixxx::audio::findLrcFile(track->getLocation());
+        if (!lrcPath.isEmpty()) {
+            auto lyrics = mixxx::audio::loadLrcFile(lrcPath);
+            if (!lyrics.isEmpty()) {
+                track->setLyrics(lyrics);
+            }
+        }
     }
 }
 

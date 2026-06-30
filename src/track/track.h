@@ -6,6 +6,7 @@
 #include <QUrl>
 #include <memory>
 
+#include "audio/lrc.h"
 #include "audio/streaminfo.h"
 #include "sources/metadatasource.h"
 #include "track/beats.h"
@@ -253,6 +254,13 @@ class Track : public QObject {
             const QString& mood);
 #endif // __EXTRA_METADATA__
 
+    /// Get the parsed LRC lyrics associated with this track
+    const mixxx::audio::Lyrics& getLyrics() const;
+    /// Set the parsed LRC lyrics
+    void setLyrics(const mixxx::audio::Lyrics& lyrics);
+    /// Clear the lyrics
+    void clearLyrics();
+
     PlayCounter getPlayCounter() const;
     void setPlayCounter(const PlayCounter& playCounter);
     void resetPlayCounter(int iTimesPlayed = 0) {
@@ -492,6 +500,7 @@ class Track : public QObject {
     // This signal indicates that ReplayGain is being adjusted, and pregains should be
     // adjusted in the opposite direction to compensate (no audible change).
     void replayGainAdjusted(const mixxx::ReplayGain&, const QString& requestingPlayerGroup);
+    void lyricsChanged();
     void colorUpdated(const mixxx::RgbColor::optional_t& color);
     void ratingUpdated(int rating);
     void cuesUpdated();
@@ -616,6 +625,9 @@ class Track : public QObject {
 
     // The list of cue points for the track
     QList<CuePointer> m_cuePoints;
+
+    // Parsed LRC lyrics
+    mixxx::audio::Lyrics m_lyrics;
 
 #ifdef __STEM__
     // The list of stem info

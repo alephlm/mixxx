@@ -8,6 +8,7 @@
 #include "waveform/renderers/waveformrendererendoftrack.h"
 #include "waveform/renderers/waveformrendererfilteredsignal.h"
 #include "waveform/renderers/waveformrendererpreroll.h"
+#include "waveform/renderers/waveformrenderlyrics.h"
 #include "waveform/renderers/waveformrendermark.h"
 #include "waveform/renderers/waveformrendermarkrange.h"
 
@@ -22,6 +23,7 @@ SoftwareWaveformWidget::SoftwareWaveformWidget(const QString& group,
     addRenderer<WaveformRendererFilteredSignal>(options);
     addRenderer<WaveformRenderBeat>();
     addRenderer<WaveformRenderMark>();
+    addRenderer<WaveformRenderLyrics>();
 
     setAttribute(Qt::WA_NoSystemBackground);
     setAttribute(Qt::WA_OpaquePaintEvent);

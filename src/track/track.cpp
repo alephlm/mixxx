@@ -2035,3 +2035,22 @@ bool Track::updateMood(
     return true;
 }
 #endif // __EXTRA_METADATA__
+
+const mixxx::audio::Lyrics& Track::getLyrics() const {
+    const auto locked = lockMutex(&m_qMutex);
+    return m_lyrics;
+}
+
+void Track::setLyrics(const mixxx::audio::Lyrics& lyrics) {
+    auto locked = lockMutex(&m_qMutex);
+    m_lyrics = lyrics;
+    markDirtyAndUnlock(&locked);
+    emit lyricsChanged();
+}
+
+void Track::clearLyrics() {
+    auto locked = lockMutex(&m_qMutex);
+    m_lyrics.clear();
+    markDirtyAndUnlock(&locked);
+    emit lyricsChanged();
+}

@@ -1714,6 +1714,7 @@ add_library(
   src/waveform/renderers/waveformrendererfilteredsignal.cpp
   src/waveform/renderers/waveformrendererhsv.cpp
   src/waveform/renderers/waveformrendererpreroll.cpp
+  src/waveform/renderers/waveformrenderlyrics.cpp
   src/waveform/renderers/waveformrendererrgb.cpp
   src/waveform/renderers/waveformrenderersignalbase.cpp
   src/waveform/renderers/waveformrenderersimplesignal.cpp
@@ -2029,6 +2030,7 @@ if(QOPENGL)
       src/waveform/renderers/allshader/waveformrendererfiltered.cpp
       src/waveform/renderers/allshader/waveformrendererhsv.cpp
       src/waveform/renderers/allshader/waveformrendererpreroll.cpp
+      src/waveform/renderers/allshader/waveformrenderlyrics.cpp
       src/waveform/renderers/allshader/waveformrendererrgb.cpp
       src/waveform/renderers/allshader/waveformrenderertextured.cpp
       src/waveform/renderers/allshader/waveformrenderersignalbase.cpp
@@ -3960,6 +3962,7 @@ if(QML)
       src/waveform/renderers/allshader/waveformrenderer.cpp
       src/waveform/renderers/allshader/waveformrendererendoftrack.cpp
       src/waveform/renderers/allshader/waveformrendererpreroll.cpp
+      src/waveform/renderers/allshader/waveformrenderlyrics.cpp
       src/waveform/renderers/allshader/waveformrendererrgb.cpp
       src/waveform/renderers/allshader/waveformrenderersignalbase.cpp
       src/waveform/renderers/allshader/waveformrendermark.cpp
