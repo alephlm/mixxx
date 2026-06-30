@@ -44,22 +44,21 @@ bool WaveformRenderLyrics::init() {
 void WaveformRenderLyrics::setup(
         const QDomNode& node, const SkinContext& context) {
     const auto textColorStr = context.selectString(node, "LyricsTextColor");
-    if (!textColorStr.isEmpty()) {
+    if (not textColorStr.isEmpty()) {
         m_textColor = QColor(textColorStr);
     }
     const auto bgColorStr = context.selectString(node, "LyricsBackgroundColor");
-    if (!bgColorStr.isEmpty()) {
+    if (not bgColorStr.isEmpty()) {
         m_bgColor = QColor(bgColorStr);
     }
     const auto fontSize = context.selectString(node, "LyricsFontSize");
-    if (!fontSize.isEmpty()) {
+    if (not fontSize.isEmpty()) {
         m_font.setPointSize(fontSize.toInt());
     }
 }
 
 void WaveformRenderLyrics::onSetTrack() {
-    m_cache.lastLineIndex = -1;
-    m_cache.text.clear();
+    m_cache.hasTexture = false;
 }
 
 void WaveformRenderLyrics::draw(QPainter* painter, QPaintEvent* event) {
@@ -68,36 +67,15 @@ void WaveformRenderLyrics::draw(QPainter* painter, QPaintEvent* event) {
     DEBUG_ASSERT(false);
 }
 
-int WaveformRenderLyrics::findCurrentLineIndex(double currentTimeSeconds) const {
-    const auto& track = m_waveformRenderer->getTrackInfo();
-    if (!track) {
-        return -1;
-    }
-    const auto& lyrics = track->getLyrics();
-    if (lyrics.isEmpty()) {
-        return -1;
-    }
-
-    int idx = -1;
-    for (int i = 0; i < lyrics.size(); ++i) {
-        if (lyrics[i].timestampSeconds <= currentTimeSeconds + 0.05) {
-            idx = i;
-        } else {
-            break;
-        }
-    }
-    return idx;
-}
-
 QString WaveformRenderLyrics::formatTime(double seconds) const {
     int mins = static_cast<int>(seconds) / 60;
     int secs = static_cast<int>(seconds) % 60;
     return QString("%1:%2").arg(mins, 2, 10, QChar('0')).arg(secs, 2, 10, QChar('0'));
 }
 
-void WaveformRenderLyrics::updateTexture() {
+void WaveformRenderLyrics::regenerateTexture() {
     const auto& track = m_waveformRenderer->getTrackInfo();
-    if (!track) {
+    if (not track) {
         clearGeometry();
         return;
     }
@@ -108,113 +86,111 @@ void WaveformRenderLyrics::updateTexture() {
         return;
     }
 
-    double playPos = m_pPlayPosition->get();
-    if (playPos < 0 || playPos > 1.0) {
+    int widgetWidth = m_waveformRenderer->getWidth();
+    int widgetHeight = m_waveformRenderer->getHeight();
+    float dpr = m_waveformRenderer->getDevicePixelRatio();
+    if (widgetWidth <= 0 || widgetHeight <= 0) {
         clearGeometry();
         return;
     }
 
     double trackDuration = track->getDuration();
-    double currentTimeSeconds = playPos * trackDuration;
-
-    int currentLine = findCurrentLineIndex(currentTimeSeconds);
-    if (currentLine < 0) {
+    if (trackDuration <= 0) {
         clearGeometry();
         return;
     }
 
-    const auto& line = lyrics[currentLine];
-    if (line.text.isEmpty()) {
+    double firstPos = m_waveformRenderer->getFirstDisplayedPosition(
+            ::WaveformRendererAbstract::Play);
+    double lastPos = m_waveformRenderer->getLastDisplayedPosition(
+            ::WaveformRendererAbstract::Play);
+    double firstTime = firstPos * trackDuration;
+    double lastTime = lastPos * trackDuration;
+    double visibleDuration = lastTime - firstTime;
+    if (visibleDuration <= 0) {
         clearGeometry();
         return;
     }
 
-    // Build display text
-    QString displayText = line.text;
-    double nextTimestamp = trackDuration;
-    if (currentLine + 1 < lyrics.size()) {
-        nextTimestamp = lyrics[currentLine + 1].timestampSeconds;
-    }
-    double timeUntilNext = nextTimestamp - currentTimeSeconds;
-    if (timeUntilNext > 0 && timeUntilNext < 60) {
-        displayText += QString("  [%1]").arg(formatTime(timeUntilNext));
-    }
+    int fontSize = qMax(8, widgetHeight / 22);
+    QFont font("sans-serif", fontSize);
+    QFontMetrics fm(font);
 
-    // Recreate texture only if the text changed
-    if (m_cache.lastLineIndex != currentLine || m_cache.text != line.text) {
-        m_cache.lastLineIndex = currentLine;
-        m_cache.text = line.text;
+    int textH = fm.height();
+    int labelH = textH + m_padding;
+    int spacing = 4;
+    int stripH = (labelH + spacing) * 2 + 6;
 
-        int widgetHeight = m_waveformRenderer->getHeight();
-        float devicePixelRatio = m_waveformRenderer->getDevicePixelRatio();
+    // Small image: only the strip height, not full widget height
+    int imgW = static_cast<int>(widgetWidth * dpr + 0.5f);
+    int imgH = static_cast<int>(stripH * dpr + 0.5f);
 
-        int fontSize = qMax(10, widgetHeight / 18);
-        QFont font("sans-serif", fontSize);
-        QFontMetrics fm(font);
+    QImage image(imgW, imgH, QImage::Format_ARGB32_Premultiplied);
+    image.setDevicePixelRatio(dpr);
+    image.fill(Qt::transparent);
 
-        int textWidth = fm.horizontalAdvance(displayText);
-        int textHeight = fm.height();
-        int boxWidth = textWidth + m_padding * 2;
-        int boxHeight = textHeight + m_padding;
+    {
+        QPainter p(&image);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setRenderHint(QPainter::TextAntialiasing);
+        p.setFont(font);
+        p.setClipRect(0, 0, widgetWidth, stripH);
 
-        int imageW = static_cast<int>(boxWidth * devicePixelRatio + 0.5f);
-        int imageH = static_cast<int>((boxHeight + 4) * devicePixelRatio + 0.5f);
-        if (imageW <= 0 || imageH <= 0)
-            return;
-
-        QImage image(imageW, imageH, QImage::Format_ARGB32_Premultiplied);
-        image.setDevicePixelRatio(devicePixelRatio);
-        image.fill(Qt::transparent);
-
-        {
-            QPainter painter(&image);
-            painter.setRenderHint(QPainter::Antialiasing);
-            painter.setRenderHint(QPainter::TextAntialiasing);
-            painter.setFont(font);
-
-            // Background
-            painter.setBrush(m_bgColor);
-            painter.setPen(Qt::NoPen);
-            painter.drawRoundedRect(0, 0, boxWidth, boxHeight + 4, 4, 4);
-
-            // Text
-            painter.setPen(m_textColor);
-            painter.drawText(m_padding, fm.ascent() + m_padding / 2, displayText);
-
-            painter.end();
+        // Collect visible lines
+        struct VL {
+            float x;
+            int w;
+            QString text;
+            int gi;
+        };
+        QVector<VL> vv;
+        int gi = 0;
+        for (const auto& line : lyrics) {
+            if (line.text.isEmpty()) {
+                gi++;
+                continue;
+            }
+            double lt = line.timestampSeconds;
+            if (lt < firstTime || lt > lastTime) {
+                gi++;
+                continue;
+            }
+            double ratio = (lt - firstTime) / visibleDuration;
+            float x = static_cast<float>(ratio * widgetWidth);
+            int tw = fm.horizontalAdvance(line.text);
+            vv.append({x, tw + m_padding * 2, line.text, gi});
+            gi++;
         }
 
-        auto* pContext = m_waveformRenderer->getContext();
-        dynamic_cast<TextureMaterial&>(material())
-                .setTexture(std::make_unique<Texture>(pContext, image));
-        m_cache.bBoxWidth = boxWidth;
-        m_cache.bBoxHeight = boxHeight + 4;
+        for (const auto& vl : vv) {
+            // Short marker (only strip height)
+            p.setPen(QColor(255, 255, 255, 40));
+            p.drawLine(QPointF(vl.x, 0), QPointF(vl.x, stripH));
+
+            float by = (vl.gi % 2) * (labelH + spacing) + 2;
+            p.setBrush(m_bgColor);
+            p.setPen(Qt::NoPen);
+            p.drawRoundedRect(vl.x, by, vl.w, labelH, 3, 3);
+            p.setPen(m_textColor);
+            p.drawText(QPointF(vl.x + m_padding, by + fm.ascent() + m_padding / 2), vl.text);
+        }
     }
 
-    // Update geometry
-    int widgetWidth = m_waveformRenderer->getWidth();
-    int widgetHeight = m_waveformRenderer->getHeight();
-    if (widgetWidth <= 0 || widgetHeight <= 0)
-        return;
+    auto* ctx = m_waveformRenderer->getContext();
+    dynamic_cast<TextureMaterial&>(material())
+            .setTexture(std::make_unique<Texture>(ctx, image));
 
     geometry().allocate(6);
-
-    float x = (widgetWidth - m_cache.bBoxWidth) / 2.0f;
-    float y = widgetHeight - m_cache.bBoxHeight - 4.0f;
-    if (x < 0)
-        x = 2;
-
-    TexturedVertexUpdater vertexUpdater{
-            geometry().vertexDataAs<Geometry::TexturedPoint2D>()};
-    vertexUpdater.addRectangle(
-            {x, y},
-            {x + static_cast<float>(m_cache.bBoxWidth),
-                    y + static_cast<float>(m_cache.bBoxHeight)},
+    TexturedVertexUpdater vu{geometry().vertexDataAs<Geometry::TexturedPoint2D>()};
+    vu.addRectangle({0.f, 0.f},
+            {static_cast<float>(widgetWidth), static_cast<float>(stripH)},
             {0.f, 0.f},
             {1.f, 1.f});
 
     markDirtyGeometry();
     markDirtyMaterial();
+
+    m_cache.hasTexture = true;
 }
 
 void WaveformRenderLyrics::clearGeometry() {
@@ -222,14 +198,25 @@ void WaveformRenderLyrics::clearGeometry() {
         geometry().allocate(0);
         markDirtyGeometry();
     }
+    m_cache.hasTexture = false;
 }
 
 void WaveformRenderLyrics::preprocess() {
-    if (m_isSlipRenderer) {
+    if (m_isSlipRenderer)
+        return;
+
+    const auto& track = m_waveformRenderer->getTrackInfo();
+    if (not track) {
+        clearGeometry();
+        return;
+    }
+    const auto& lyrics = track->getLyrics();
+    if (lyrics.isEmpty()) {
+        clearGeometry();
         return;
     }
 
-    // For allshader, skip if this is a slip renderer
-    updateTexture();
+    // Regenerate every frame to keep in sync with waveform updates
+    regenerateTexture();
 }
 } // namespace allshader

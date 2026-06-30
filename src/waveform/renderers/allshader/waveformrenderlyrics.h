@@ -2,7 +2,9 @@
 
 #include <QColor>
 #include <QFont>
+#include <QVector>
 
+#include "audio/lrc.h"
 #include "rendergraph/geometrynode.h"
 #include "util/class.h"
 #include "waveform/renderers/waveformrendererabstract.h"
@@ -34,9 +36,8 @@ class allshader::WaveformRenderLyrics final
     void preprocess() override;
 
   private:
-    int findCurrentLineIndex(double currentTimeSeconds) const;
     QString formatTime(double seconds) const;
-    void updateTexture();
+    void regenerateTexture();
     void clearGeometry();
 
     std::unique_ptr<ControlProxy> m_pPlayPosition;
@@ -48,17 +49,10 @@ class allshader::WaveformRenderLyrics final
     int m_padding;
     bool m_isSlipRenderer;
 
-    // Cached texture data
+    // Cache only used to track if we need initial texture generation
     struct {
-        int width = 0;
-        int height = 0;
-        int bBoxWidth = 0;
-        int bBoxHeight = 0;
-        QString text;
-        int lastLineIndex = -1;
+        bool hasTexture = false;
     } m_cache;
-
-    bool m_bTextureReady = false;
 
     DISALLOW_COPY_AND_ASSIGN(WaveformRenderLyrics);
 };
