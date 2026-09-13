@@ -87,6 +87,8 @@ const ConfigKey kDefaultZoomKey =
 const ConfigKey kFrameRateKey =
         ConfigKey(kWaveformGroup, QStringLiteral("FrameRate"));
 const ConfigKey kVSyncKey = ConfigKey(kWaveformGroup, QStringLiteral("VSync"));
+const ConfigKey kDownbeatsEnabledKey = ConfigKey(kWaveformGroup, QStringLiteral("show_downbeats"));
+const ConfigKey kPhraseLengthKey = ConfigKey(kWaveformGroup, QStringLiteral("phrase_length"));
 
 ConfigKey visualGainKey(int index) {
     return ConfigKey(kWaveformGroup, QStringLiteral("VisualGain_") + QString::number(index));
@@ -143,6 +145,8 @@ WaveformWidgetFactory::WaveformWidgetFactory()
           m_openGlesAvailable(false),
           m_openGLShaderAvailable(false),
           m_beatGridAlpha(90),
+          m_downbeatsEnabled(downbeatsEnabledDefault()),
+          m_phraseLength(phraseLengthDefault()),
           m_vsyncThread(nullptr),
           m_pGuiTick(nullptr),
           m_pVisualsManager(nullptr),
@@ -483,6 +487,18 @@ bool WaveformWidgetFactory::setConfig(UserSettingsPointer config) {
             ConfigKey(kWaveformGroup, QStringLiteral("stem_split_tracks")),
             false));
 
+    int downbeatsEnabled =
+            m_config->getValueString(kDownbeatsEnabledKey).toInt(&ok);
+    if (ok) {
+        setDownbeatsEnabled(static_cast<bool>(downbeatsEnabled));
+    }
+    int phraseLength = m_config->getValue(
+            kPhraseLengthKey,
+            phraseLengthDefault());
+    setPhraseLength(math_clamp(phraseLength,
+            phraseLengthMin(),
+            phraseLengthMax()));
+
     return true;
 }
 
@@ -754,6 +770,24 @@ void WaveformWidgetFactory::setDisplayBeatGridAlpha(int alpha) {
 
     for (const auto& holder : std::as_const(m_waveformWidgetHolders)) {
         holder.m_waveformWidget->setDisplayBeatGridAlpha(m_beatGridAlpha);
+    }
+}
+
+void WaveformWidgetFactory::setDownbeatsEnabled(bool enabled) {
+    m_downbeatsEnabled = enabled;
+    if (m_config) {
+        m_config->setValue(kDownbeatsEnabledKey, m_downbeatsEnabled);
+    }
+}
+
+void WaveformWidgetFactory::setPhraseLength(int phraseLength) {
+    VERIFY_OR_DEBUG_ASSERT(phraseLength >= phraseLengthMin() &&
+            phraseLength <= phraseLengthMax()) {
+        phraseLength = phraseLengthDefault();
+    }
+    m_phraseLength = phraseLength;
+    if (m_config) {
+        m_config->setValue(kPhraseLengthKey, m_phraseLength);
     }
 }
 
