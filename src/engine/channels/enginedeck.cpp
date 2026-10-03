@@ -13,8 +13,8 @@
 #include "moc_enginedeck.cpp"
 #include "track/track.h"
 #include "util/assert.h"
-#include "util/ledserial.h"
 #include "util/sample.h"
+#include "util/stemsignalsender.h"
 
 EngineDeck::EngineDeck(
         const ChannelHandleAndGroup& handleGroup,
@@ -28,9 +28,16 @@ EngineDeck::EngineDeck(
                   primaryDeck),
           m_pConfig(pConfig),
           m_pEngineMixer(pMixingEngine),
-          m_volumeProxy(ConfigKey(getGroup(), QStringLiteral("volume"))),
-          m_xfaderPositionProxy(QStringLiteral("[Master]"), QStringLiteral("crossfader")),
-          m_xfaderOrientationProxy(ConfigKey(getGroup(), QStringLiteral("orientation"))),
+          // These controls are created later by EngineMixer::addChannel(), so
+          // they may not exist yet here. They are re-created in
+          // initPollingProxies() once the channel controls exist.
+          m_volumeProxy(ConfigKey(getGroup(), QStringLiteral("volume")),
+                  ControlFlag::AllowMissingOrInvalid),
+          m_xfaderPositionProxy(QStringLiteral("[Master]"),
+                  QStringLiteral("crossfader"),
+                  ControlFlag::AllowMissingOrInvalid),
+          m_xfaderOrientationProxy(ConfigKey(getGroup(), QStringLiteral("orientation")),
+                  ControlFlag::AllowMissingOrInvalid),
 #ifdef __STEM__
           m_stemClonedState(false),
 #endif
@@ -227,7 +234,7 @@ void EngineDeck::processStem(CSAMPLE* pOut, const std::size_t bufferSize) {
         }
 
         if (shouldSend) {
-            LedSerial::send(deckId, stemIdx, brightness);
+            StemSignalSender::send(deckId, stemIdx, brightness);
         }
 
         // Put back the stem frames into the steam buffer (LRLR -> LR......LR......)
@@ -268,11 +275,16 @@ void EngineDeck::cloneStemState(const EngineDeck* deckToClone) {
 void EngineDeck::initPollingProxies() {
     // Reinitialize proxies now that EngineMixer has created the persistent
     // channel controls (volume, orientation) and the master crossfader.
-    m_volumeProxy = PollingControlProxy(ConfigKey(getGroup(), QStringLiteral("volume")));
-    m_xfaderPositionProxy = PollingControlProxy(
-            QStringLiteral("[Master]"), QStringLiteral("crossfader"));
+    // AllowMissingOrInvalid: channels such as samplers may lack some of these
+    // controls, and a missing control must not be fatal here.
+    m_volumeProxy = PollingControlProxy(ConfigKey(getGroup(), QStringLiteral("volume")),
+            ControlFlag::AllowMissingOrInvalid);
+    m_xfaderPositionProxy = PollingControlProxy(QStringLiteral("[Master]"),
+            QStringLiteral("crossfader"),
+            ControlFlag::AllowMissingOrInvalid);
     m_xfaderOrientationProxy = PollingControlProxy(
-            ConfigKey(getGroup(), QStringLiteral("orientation")));
+            ConfigKey(getGroup(), QStringLiteral("orientation")),
+            ControlFlag::AllowMissingOrInvalid);
 }
 
 void EngineDeck::process(CSAMPLE* pOut, const std::size_t bufferSize) {

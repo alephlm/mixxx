@@ -27,6 +27,7 @@
 #include "util/parented_ptr.h"
 #include "util/sample.h"
 #include "util/samplebuffer.h"
+#include "util/stemsignalsender.h"
 
 namespace {
 const QString kAppGroup = QStringLiteral("[App]");
@@ -208,6 +209,10 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
 
     m_pBoothEnabled->setReadOnly();
     m_pHeadphoneEnabled->setReadOnly();
+
+    // Initialize the UDP sender for the stem-LED controller once, rather than
+    // from each EngineChannel constructor.
+    StemSignalSender::init();
 
     // Note: the EQ Rack is set in EffectsManager::setupDefaults();
 }
