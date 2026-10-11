@@ -171,7 +171,6 @@ bool WaveformRenderBeat::preprocessInner() {
     std::optional<mixxx::Beats::ConstIterator> firstDownbeat = std::nullopt;
     auto* pWaveformWidgetFactory = WaveformWidgetFactory::instance();
     bool downbeatsEnabled = false;
-    const int kDownbeatDistance = 4; // downbeats are always one bar (4 beats) apart
     const int phraseLength = pWaveformWidgetFactory->getPhraseLength();
     if (pWaveformWidgetFactory->getDownbeatsEnabled() && m_firstDownBeat.has_value()) {
         downbeatsEnabled = true;
@@ -229,15 +228,14 @@ bool WaveformRenderBeat::preprocessInner() {
         const float x1 = static_cast<float>(xBeatPoint);
         const float x2 = x1 + 1.f;
 
-        const bool isDownbeat = downbeatsEnabled &&
-                std::distance(*firstDownbeat, it) % kDownbeatDistance == 0;
         const bool isPhrase = downbeatsEnabled && phraseLength > 0 &&
                 std::distance(*firstDownbeat, it) % phraseLength == 0;
         const QVector4D downbeatColor =
                 QVector4D{downbeat_r, downbeat_g, downbeat_b, downbeat_alpha};
-        const QVector4D beatLineColor = isDownbeat
-                ? downbeatColor
-                : QVector4D{beat_r, beat_g, beat_b, beat_alpha};
+        // Downbeat lines are not rendered; all beat lines use the regular
+        // beat color. Only phrase markers (triangles) are drawn on top.
+        const QVector4D beatLineColor =
+                QVector4D{beat_r, beat_g, beat_b, beat_alpha};
 
         const float xMid = (x1 + x2) / 2.f;
         const float triangleHalfWidth = 4.f;
